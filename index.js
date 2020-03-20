@@ -4,9 +4,9 @@ import "./client/styles/_publisher.scss";
 import "angular-in-viewport";
 import "angular-drag-and-drop-lists-spiria/angular-drag-and-drop-lists";
 
-import * as controllers from "./client/controllers";
-import * as services from "./client/services";
-import * as directive from "./client/directives";
+import * as controllerss from "./client/controllers";
+import * as servicess from "./client/services";
+import * as directivee from "./client/directives";
 
 import Publishing from "./client/extensions/Publishing";
 
