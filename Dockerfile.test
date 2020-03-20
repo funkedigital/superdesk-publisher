@@ -1,0 +1,19 @@
+# use an existing docker image as a base
+FROM node
+
+# install dependencies
+RUN apt-get update
+RUN apt-get -y install curl gnupg
+RUN curl -sL https://deb.nodesource.com/setup_12.x  | bash -
+RUN apt-get -y install nodejs
+RUN npm install
+
+COPY ./ ./
+
+
+
+RUN npm install
+RUN npm i -g jest
+
+
+CMD ["npm", "test", "--", "-u"]
