@@ -3,17 +3,25 @@ FROM node
 
 # install dependencies
 RUN apt-get update
-RUN apt-get -y install curl gnupg
+RUN apt-get -y install curl gnupg build-essential libssl-dev
 RUN curl -sL https://deb.nodesource.com/setup_12.x  | bash -
 RUN apt-get -y install nodejs
-RUN npm install
 
 COPY ./ ./
 
 
+SHELL [ "/bin/bash", "-l", "-c" ]
+
+RUN apt-get update && apt-get install -y curl
+RUN curl --silent -o- https://raw.githubusercontent.com/creationix/nvm/master/install.sh | bash
+# this now works
+RUN nvm install 9
+
+SHELL ["/bin/sh", "-c"]
+
+ENV TZ Europe/Warsaw
 
 RUN npm install
-RUN npm i -g jest
 
 
-CMD ["npm", "test", "--", "-u"]
+CMD ["npm", "run", "test"]
