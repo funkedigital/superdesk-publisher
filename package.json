@@ -8,7 +8,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:debug": "jest --debug",
-    "test:updateSnapshot": "jest --updateSnapshot"
+    "test:updateSnapshot": "jest --updateSnapshot",
+    "test:coverage": "jest --coverage"
   },
   "repository": {
     "type": "git",
@@ -39,12 +40,10 @@
     "moment": "^2.24.0",
     "ng-file-upload": "^12.2.13",
     "ng-infinite-scroll": "^1.3.0",
-    "react-awesome-slider": "^1.0.1",
     "react-beautiful-dnd": "^11.0.5",
+    "react-infinite-scroll-component": "^5.0.4",
     "react-select": "^3.0.4",
-    "react-virtualized-auto-sizer": "^1.0.2",
-    "react-window": "^1.8.5",
-    "react-window-infinite-loader": "^1.0.5"
+    "react-virtualized": "^9.21.2"
   },
   "devDependencies": {
     "@babel/plugin-proposal-class-properties": "^7.4.4",
@@ -62,7 +61,7 @@
     "jest-dom": "^3.4.0",
     "jest-transform-css": "^2.0.0",
     "superdesk-code-style": "^1.0.0",
-    "superdesk-core": "superdesk/superdesk-client-core#8d05a5f",
+    "superdesk-core": "superdesk/superdesk-client-core#69a36ee",
     "wait-for-expect": "^1.2.0"
   }
 }

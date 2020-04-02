@@ -34,6 +34,10 @@
   }
 }
 
+.leftSpace {
+  margin-left: 0.25em;
+}
+
 .margin {
   &--none {
     margin: 0 !important;
@@ -239,10 +243,16 @@ select[disabled] > option {
 }
 
 .draggable {
-  cursor: move !important; /* fallback if grab cursor is unsupported */
-  cursor: grab !important;
-  cursor: -moz-grab !important;
-  cursor: -webkit-grab !important;
+  cursor: move; /* fallback if grab cursor is unsupported */
+  cursor: grab;
+  cursor: -moz-grab;
+  cursor: -webkit-grab;
+
+  &:active {
+    cursor: grabbing;
+    cursor: -moz-grabbing;
+    cursor: -webkit-grabbing;
+  }
 }
 
 .dndDragging .draggable {
@@ -270,12 +280,15 @@ select[disabled] > option {
   background-color: #f2f2f2;
   border-radius: 3px;
   line-height: 140%;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: "Courier New", Courier, monospace;
 }
 .authoring {
   .ui-responsive-medium {
     .if-authoring--d-none {
       display: none;
     }
+  }
+  .sd-page-content__content-block {
+    width: auto;
   }
 }

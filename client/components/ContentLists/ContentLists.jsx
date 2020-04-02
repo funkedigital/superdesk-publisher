@@ -7,7 +7,7 @@ import SitesSideNav from "../generic/SitesSideNav";
 import Listing from "./Listing";
 import AutomaticList from "./Automatic/Automatic";
 import ManualList from "./Manual/Manual";
-import ArticlePreview from "../generic/ArticlePreview";
+import PreviewPane from "./PreviewPane";
 
 class ContentLists extends React.Component {
   constructor(props) {
@@ -103,9 +103,12 @@ class ContentLists extends React.Component {
     let lists = [...this.state.lists];
     let index = lists.findIndex(list => list.id === id);
 
-    if (index > -1) {
-      delete lists[index];
+    if (index < 0) {
+      index = lists.findIndex(list => typeof list.id === "undefined");
+    }
 
+    if (index > -1) {
+      lists.splice(index, 1);
       this.setState({ lists });
     }
   };
@@ -122,7 +125,21 @@ class ContentLists extends React.Component {
     if (index > -1) {
       lists[index] = updatedList;
     }
+
     this.setState({ lists, selectedList });
+  };
+
+  onListCreated = newList => {
+    let lists = [...this.state.lists];
+    let oldIndex = lists.findIndex(list => typeof list.id === "undefined");
+
+    if (oldIndex > -1) {
+      lists.splice(oldIndex, 1);
+    }
+
+    lists.unshift(newList);
+
+    this.setState({ lists });
   };
 
   toggleTenantsNav = () =>
@@ -140,7 +157,7 @@ class ContentLists extends React.Component {
       cache_life_time: 0
     };
 
-    this.setState({ lists: [...this.state.lists, list] });
+    this.setState({ lists: [list, ...this.state.lists] });
   };
 
   render() {
@@ -189,6 +206,7 @@ class ContentLists extends React.Component {
                 lists={this.state.lists}
                 publisher={this.props.publisher}
                 onListDelete={id => this.onListDelete(id)}
+                onListCreated={list => this.onListCreated(list)}
                 addList={type => this.addList(type)}
                 listEdit={list => this.listEdit(list)}
               />
@@ -225,16 +243,20 @@ class ContentLists extends React.Component {
                   previewItem={this.state.previewItem}
                   filtersOpen={this.state.filtersOpen}
                   api={this.props.api}
+                  isLanguagesEnabled={this.props.isLanguagesEnabled}
+                  languages={this.props.languages}
+                  site={this.state.selectedSite}
                 />
               )}
 
-            <ArticlePreview
+            <PreviewPane
               article={
                 this.state.previewItem && this.state.previewItem.content
                   ? this.state.previewItem.content
                   : this.state.previewItem
               }
               close={this.closePreview}
+              publisher={this.props.publisher}
             />
           </div>
         </div>
@@ -247,7 +269,9 @@ ContentLists.propTypes = {
   tenant: PropTypes.string,
   list: PropTypes.string,
   publisher: PropTypes.object.isRequired,
-  api: PropTypes.func.isRequired
+  api: PropTypes.func.isRequired,
+  isLanguagesEnabled: PropTypes.bool.isRequired,
+  languages: PropTypes.array.isRequired
 };
 
 export default ContentLists;

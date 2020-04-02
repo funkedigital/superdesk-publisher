@@ -12,7 +12,8 @@ WebPublisherSettingsController.$inject = [
   "modal",
   "vocabularies",
   "$sce",
-  "notify"
+  "notify",
+  "api"
 ];
 export function WebPublisherSettingsController(
   $scope,
@@ -20,13 +21,28 @@ export function WebPublisherSettingsController(
   modal,
   vocabularies,
   $sce,
-  notify
+  notify,
+  api
 ) {
   class WebPublisherSettings {
     constructor() {
       this.TEMPLATES_DIR = "scripts/apps/web-publisher/views";
       $scope.mainLoading = true;
       this.siteWizardActive = false;
+
+      this.isLanguagesEnabled = false;
+
+      vocabularies.getVocabularies().then(res => {
+        this.languages = res.find(v => v._id === "languages");
+        this.languages = this.languages && this.languages.items ? this.languages.items.filter(l => l.is_active) : [];
+
+        if (this.languages.length > 1) {
+          this.isLanguagesEnabled = true;
+        }
+      });
+
+      this.authors = [];
+      this.loadAuthors();
 
       publisher
         .setToken()
@@ -43,6 +59,24 @@ export function WebPublisherSettingsController(
           });
           // rules panel is default
           this.changePanel("tenant");
+        });
+    }
+
+    loadAuthors(page = 0) {
+
+      api.users.query({
+        max_results: 200,
+        page: page,
+        sort: '[("first_name", 1), ("last_name", 1)]',
+        where: {
+          is_support: { $ne: true }
+        }
+      })
+        .then(response => {
+          let authors = response._items.filter(item => item.is_author);
+
+          if (authors.length) this.authors = [...this.authors, ...authors];
+          if (response._links.next) this.loadAuthors(page + 1);
         });
     }
 
@@ -102,11 +136,20 @@ export function WebPublisherSettingsController(
      */
     changeManageTab(newTabName) {
       this.manageTab = newTabName;
+      this.paneOpen = false;
 
       switch (newTabName) {
         case "routes":
-          this.changeRouteFilter("");
+          this.routeType = "";
+          // getting only route redirects to fill route objects
+          this.redirectType = "route";
+          this._refreshRedirects().then(redirects => this._refreshRoutes(redirects));
+
+          break;
+        case "redirects":
+          this.redirectType = "";
           this._refreshRoutes();
+          this._refreshRedirects();
           break;
         case "navigation":
           $scope.menu = {};
@@ -212,12 +255,13 @@ export function WebPublisherSettingsController(
      * @ngdoc method
      * @name WebPublisherSettingsController#toogleCreateRoute
      * @param {Boolean} paneOpen - should pane be open
+     * @param {String} type - type of redirect
      * @description Opens window for creating new route
      */
-    toogleCreateRoute(paneOpen) {
+    toggleCreateRoute(paneOpen, type) {
       this.selectedRoute = {};
-      $scope.newRoute = {};
-      this.routePaneOpen = paneOpen;
+      $scope.newRoute = { type: type };
+      this.paneOpen = paneOpen;
     }
 
     /**
@@ -227,12 +271,24 @@ export function WebPublisherSettingsController(
      * @description Opens window for editing route
      */
     editRoute(route) {
-      this.routeForm.$setPristine();
+      this.paneOpen = true;
+
       this.selectedRoute = route;
       $scope.newRoute = angular.copy(route);
+
+      if ($scope.newRoute.type === "custom") {
+        const regex = /\/{([a-zA-Z0-9]*)}/gm;
+        let match = regex.exec($scope.newRoute.variable_pattern);
+
+        $scope.newRoute.variableName = match[1] ? match[1] : '';
+
+        delete $scope.newRoute.requirements
+        delete $scope.newRoute.variable_pattern;
+      }
+
       // we never edit list of children
       delete $scope.newRoute.children;
-      this.routePaneOpen = true;
+      this.routeForm.$setPristine();
     }
 
     /**
@@ -241,6 +297,21 @@ export function WebPublisherSettingsController(
      * @description Saving route
      */
     saveRoute() {
+
+      if ($scope.newRoute.type === "custom") {
+        $scope.newRoute.variable_pattern = "/{" + $scope.newRoute.variableName + "}";
+
+        $scope.newRoute.requirements = [
+          {
+            "key": $scope.newRoute.variableName,
+            "value": "[a-zA-Z\\-_]+"
+          }
+        ];
+
+        delete $scope.newRoute.variableName;
+      }
+
+
       let updatedKeys = this._updatedKeys($scope.newRoute, this.selectedRoute);
 
       // only for updating, parent is received as object but for update id is needed
@@ -254,7 +325,7 @@ export function WebPublisherSettingsController(
           this.selectedRoute.id
         )
         .then(route => {
-          this.routePaneOpen = false;
+          this.paneOpen = false;
           this._refreshRoutes();
         });
     }
@@ -354,9 +425,10 @@ export function WebPublisherSettingsController(
      * @ngdoc method
      * @name WebPublisherSettingsController#_refreshRoutes
      * @private
+     * @param {Array} redirects - list of redirects
      * @description Loads list of routes
      */
-    _refreshRoutes() {
+    _refreshRoutes(redirects) {
       $scope.loading = true;
       publisher.queryRoutes().then(routes => {
         $scope.loading = false;
@@ -373,9 +445,123 @@ export function WebPublisherSettingsController(
         } else {
           filteredRoutes.children = routes.filter(item => !item.parent);
         }
+
+        if (redirects && redirects.length) {
+          filteredRoutes.children.forEach(route => {
+            let routeRedirect = redirects.find(r => {
+              return r.route_source.id === route.id
+            }
+            );
+            if (routeRedirect) route.redirect = routeRedirect;
+          })
+        }
         $scope.routes = filteredRoutes;
       });
     }
+    // ---------------------------------- REDIRECTS
+    /**
+    * @ngdoc method
+    * @name WebPublisherSettingsController#toogleCreateRedirect
+    * @param {Boolean} paneOpen - should pane be open
+    * @param {String} kind - type of redirect
+    * @description Opens window for creating new redirect
+    */
+    toggleCreateRedirect(paneOpen, kind = 'route') {
+      this.selectedRedirect = {};
+      $scope.newRedirect = { kind: kind, permanent: "true" };
+      this.paneOpen = paneOpen;
+    }
+
+    onChangeRedirectKind() {
+      $scope.newRedirect = { kind: $scope.newRedirect.kind, permanent: $scope.newRedirect.permanent };
+    }
+
+    changeRedirectFilter(type) {
+      this.redirectType = type;
+      this._refreshRedirects();
+    }
+
+    saveRedirect() {
+      let updatedKeys = this._updatedKeys($scope.newRedirect, this.selectedRedirect);
+      let newRedirect = _.pick($scope.newRedirect, updatedKeys);
+
+      delete newRedirect.kind;
+
+      publisher
+        .manageRedirect(
+          newRedirect,
+          this.selectedRedirect.id
+        )
+        .then(r => {
+          this.toggleCreateRedirect(false);
+          this._refreshRedirects();
+        }).catch(err => {
+          let message = err.data.message
+            ? err.data.message
+            : "Something went wrong. Try again.";
+          modal.confirm(message);
+        });
+    }
+
+    editRedirect(redirect) {
+      let editedRedirect = {
+        permanent: redirect.permanent ? "true" : "false",
+        id: redirect.id
+      };
+
+      if (redirect.route_target && redirect.route_source) {
+        editedRedirect.kind = "route";
+        editedRedirect.route_target = redirect.route_target.id;
+        editedRedirect.route_source = redirect.route_source.id;
+      } else {
+        editedRedirect.kind = "custom";
+        editedRedirect.route_name = redirect.route_name;
+        editedRedirect.uri = redirect.uri;
+      }
+
+      this.selectedRedirect = redirect;
+      $scope.newRedirect = angular.copy(editedRedirect);
+      this.paneOpen = true;
+      this.redirectForm.$setPristine();
+    }
+
+    deleteRedirect(id) {
+      modal
+        .confirm(gettext("Please confirm you want to delete redirect."))
+        .then(() =>
+          publisher.removeRedirect(id).then(() => {
+            this._refreshRedirects();
+          })
+        )
+        .catch(err => {
+          let message = err.data.message
+            ? err.data.message
+            : "Something went wrong. Try again.";
+          modal.confirm(message);
+        });
+    }
+
+    _refreshRedirects() {
+      $scope.loading = true;
+      return publisher.queryRedirects().then(redirects => {
+        let filteredRedirects = redirects;
+
+        if (this.redirectType === "route") {
+          filteredRedirects = redirects.filter(
+            redirect => redirect.route_target && redirect.route_source
+          );
+        } else if (this.redirectType === "custom") {
+          filteredRedirects = redirects.filter(
+            redirect => !redirect.route_target && !redirect.route_source
+          );
+        }
+
+        $scope.loading = false;
+        $scope.redirects = filteredRedirects;
+        return filteredRedirects;
+      });
+    }
+
 
     // ---------------------------------- NAVIGATION
 
@@ -427,6 +613,19 @@ export function WebPublisherSettingsController(
       if ($scope.menu.id && !$scope.newMenu.parent) {
         $scope.newMenu.parent = $scope.menu.id;
       }
+
+      if ($scope.newMenu.route) {
+        let route = $scope.routes.find(r => r.id === $scope.newMenu.route);
+        if (route.type === 'custom') {
+          let valueSlug = $scope.newMenu.variableValue.toLowerCase().replace(" ", "-");
+
+          $scope.newMenu.uri = valueSlug.length ? route.static_prefix + "/" + valueSlug : route.static_prefix;
+          delete $scope.newMenu.route;
+          delete $scope.newMenu.variableValue;
+        }
+      }
+
+      delete $scope.newMenu.type;
 
       let updatedKeys = this._updatedKeys($scope.newMenu, this.selectedMenu);
 
@@ -488,12 +687,27 @@ export function WebPublisherSettingsController(
      * @ngdoc method
      * @name WebPublisherSettingsController#toogleCreateMenu
      * @param {Boolean} paneOpen - should pane be open
+     * @param {String} type - type of redirect
      * @description Creates a new menu
      */
-    toogleCreateMenu(paneOpen) {
+    toogleCreateMenu(paneOpen, type) {
       this.selectedMenu = {};
-      $scope.newMenu = {};
+      $scope.newMenu = { type: type };
       this.menuPaneOpen = paneOpen;
+    }
+
+    isRouteTypeCustom(routeId) {
+      if (!$scope.routes) return null;
+
+      let route = $scope.routes.find(r => r.id === routeId);
+      return route.type === 'custom';
+    }
+
+    getRouteNameById(routeId) {
+      if (!$scope.routes) return null;
+
+      let route = $scope.routes.find(r => r.id === routeId);
+      return route.name;
     }
 
     /**
@@ -505,6 +719,7 @@ export function WebPublisherSettingsController(
     editMenu(menu) {
       this.menuForm.$setPristine();
       this.selectedMenu = menu;
+      menu.type = menu.route ? "route" : "custom";
       $scope.newMenu = angular.copy(menu);
       this.menuPaneOpen = true;
     }
@@ -849,7 +1064,7 @@ export function WebPublisherSettingsController(
      * @description gets tenant url by its code
      */
     getTenantUrlByCode(code) {
-      let tenant = this.sites.find(function(site) {
+      let tenant = this.sites.find(function (site) {
         return site.code == code;
       });
 
@@ -864,11 +1079,11 @@ export function WebPublisherSettingsController(
      * @description gets route name by tenant and route id
      */
     getRouteNameByTenantAndId(tenantCode, routeId) {
-      let tenant = this.sites.find(function(site) {
+      let tenant = this.sites.find(function (site) {
         return site.code == tenantCode;
       });
 
-      let route = tenant.routes.find(function(route) {
+      let route = tenant.routes.find(function (route) {
         return route.id == routeId;
       });
 
@@ -1010,7 +1225,7 @@ export function WebPublisherSettingsController(
         .confirm(gettext("Please confirm you want to delete rule."))
         .then(() => {
           if (tenantCode) {
-            let tenant = this.sites.find(function(site) {
+            let tenant = this.sites.find(function (site) {
               return site.code == tenantCode;
             });
 
@@ -1034,6 +1249,8 @@ export function WebPublisherSettingsController(
      * @description Edit rule
      */
     editRule(rule, tenantCode) {
+      this.rulePreviewOpen = false;
+
       this.selectedRule = angular.copy(rule);
       $scope.newRule = angular.copy(rule);
       $scope.newRule.type = $scope.newRule.configuration.destinations
@@ -1043,7 +1260,7 @@ export function WebPublisherSettingsController(
 
       if (tenantCode && $scope.newRule.type === "tenant") {
         // tenant rule
-        $scope.newRule.action.tenant = this.sites.find(function(site) {
+        $scope.newRule.action.tenant = this.sites.find(function (site) {
           return site.code == tenantCode;
         });
         if ($scope.newRule.configuration.route) {
@@ -1066,7 +1283,7 @@ export function WebPublisherSettingsController(
         $scope.newRule.destinations = [];
 
         _.each($scope.newRule.configuration.destinations, destination => {
-          let tenant = this.sites.find(function(site) {
+          let tenant = this.sites.find(function (site) {
             return site.code == destination.tenant;
           });
           $scope.newRule.destinations.push(tenant);
@@ -1346,7 +1563,7 @@ export function WebPublisherSettingsController(
       this.availableTenants = [];
       _.each(this.organizationRules, rule => {
         _.each(rule.configuration.destinations, dest => {
-          let tenant = this.sites.find(function(site) {
+          let tenant = this.sites.find(function (site) {
             return site.code == dest.tenant;
           });
 

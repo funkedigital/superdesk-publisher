@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-import Check from "../UI/Check";
+import CheckButton from "../UI/CheckButton";
 import ListCard from "./ListCard";
 import Dropdown from "../UI/Dropdown";
 
@@ -37,6 +37,11 @@ class Listing extends React.Component {
         list.name.toLowerCase().includes(this.state.search)
       );
 
+    let addButtonDisabled = false;
+    let newListIndex = lists.findIndex(list => typeof list.id === "undefined");
+
+    if (newListIndex > -1) addButtonDisabled = true;
+
     return (
       <div className="sd-column-box__main-column relative sd-display-flex-column">
         <div className="subnav subnav--lower-z-index">
@@ -45,17 +50,17 @@ class Listing extends React.Component {
             onChange={value => this.setState({ search: value.toLowerCase() })}
             debounceTime={1}
           />
-          <Check
+          <CheckButton
             label="All"
             isChecked={this.state.filter === "all"}
             onClick={() => this.setFilter("all")}
           />
-          <Check
+          <CheckButton
             label="Automatic"
             isChecked={this.state.filter === "automatic"}
             onClick={() => this.setFilter("automatic")}
           />
-          <Check
+          <CheckButton
             label="Manual"
             isChecked={this.state.filter === "manual"}
             onClick={() => this.setFilter("manual")}
@@ -78,12 +83,18 @@ class Listing extends React.Component {
             </li>
             <li className="dropdown__menu-divider" />
             <li>
-              <button onClick={() => this.addList("automatic")}>
+              <button
+                disabled={addButtonDisabled}
+                onClick={() => this.addList("automatic")}
+              >
                 Automatic List
               </button>
             </li>
             <li>
-              <button onClick={() => this.addList("manual")}>
+              <button
+                disabled={addButtonDisabled}
+                onClick={() => this.addList("manual")}
+              >
                 Manual List
               </button>
             </li>
@@ -91,12 +102,13 @@ class Listing extends React.Component {
         </div>
         <div className="sd-display-flex-column">
           <div className="sd-grid-list sd-grid-list--large">
-            {lists.map(list => (
+            {lists.map((list, index) => (
               <ListCard
-                key={list.id + list.name + "sf"}
+                key={list.id + "listCard"}
                 list={list}
                 publisher={this.props.publisher}
                 onListDelete={id => this.props.onListDelete(id)}
+                onListCreated={list => this.props.onListCreated(list)}
                 listEdit={list => this.props.listEdit(list)}
               />
             ))}
@@ -120,6 +132,7 @@ Listing.propTypes = {
   lists: PropTypes.array.isRequired,
   publisher: PropTypes.object.isRequired,
   onListDelete: PropTypes.func.isRequired,
+  onListCreated: PropTypes.func.isRequired,
   addList: PropTypes.func.isRequired,
   listEdit: PropTypes.func.isRequired
 };

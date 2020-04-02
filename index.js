@@ -12,62 +12,15 @@ import Publishing from "./client/extensions/Publishing";
 
 cacheIncludedTemplates.$inject = ["$templateCache"];
 function cacheIncludedTemplates($templateCache) {
+
   $templateCache.put(
     "sidebar-content.html",
     require("./client/views/sidebar-content.html")
   );
-
-  $templateCache.put(
-    "filter-pane.html",
-    require("./client/views/output/filter-pane.html")
-  );
-  $templateCache.put(
-    "publishing-pane.html",
-    require("./client/views/output/publishing-pane.html")
-  );
-  $templateCache.put(
-    "publish-pane-listitem.html",
-    require("./client/views/output/publish-pane-listitem.html")
-  );
-  $templateCache.put(
-    "preview-pane.html",
-    require("./client/views/output/preview-pane.html")
-  );
-  $templateCache.put(
-    "article-preview.html",
-    require("./client/views/output/article-preview.html")
-  );
-  $templateCache.put(
-    "output/swimlane.html",
-    require("./client/views/output/swimlane.html")
-  );
-  $templateCache.put(
-    "output/publish-pane-listItem-contentLists.html",
-    require("./client/views/output/publish-pane-listItem-contentLists.html")
-  );
-  $templateCache.put(
-    "output/metaDataOverlay.html",
-    require("./client/views/output/metaDataOverlay.html")
-  );
-
-  $templateCache.put(
-    "list-articles-card.html",
-    require("./client/directives/listArticles/list-articles-card.html")
-  );
-  $templateCache.put(
-    "list-articles-detail.html",
-    require("./client/directives/listArticles/list-articles-detail.html")
-  );
-
   $templateCache.put(
     "themeManager-details.html",
     require("./client/directives/themeManager/themeManager-details.html")
   );
-  $templateCache.put(
-    "tenant.html",
-    require("./client/views/dashboard/tenant.html")
-  );
-
   $templateCache.put(
     "settings/rules/index.html",
     require("./client/views/settings/rules/index.html")
@@ -126,16 +79,16 @@ function cacheIncludedTemplates($templateCache) {
     require("./client/views/settings/website-management/partials/routes-tree.html")
   );
   $templateCache.put(
-    "settings/website-management/manage-navigation.html",
-    require("./client/views/settings/website-management/manage-navigation.html")
+    "settings/website-management/navigation/index.html",
+    require("./client/views/settings/website-management/navigation/index.html")
   );
   $templateCache.put(
-    "settings/website-management/manage-navigation-menu.html",
-    require("./client/views/settings/website-management/manage-navigation-menu.html")
+    "settings/website-management/navigation/menu.html",
+    require("./client/views/settings/website-management/navigation/menu.html")
   );
   $templateCache.put(
-    "settings/website-management/partials/navigation-tree-renderer.html",
-    require("./client/views/settings/website-management/partials/navigation-tree-renderer.html")
+    "settings/website-management/navigation/tree-renderer.html",
+    require("./client/views/settings/website-management/navigation/tree-renderer.html")
   );
   $templateCache.put(
     "settings/website-management/manage-theme-settings.html",
@@ -154,7 +107,27 @@ function cacheIncludedTemplates($templateCache) {
     "settings/website-management/webhooks/webhook-add.html",
     require("./client/views/settings/website-management/webhooks/webhook-add.html")
   );
+
+  $templateCache.put(
+    "settings/website-management/route-form.html",
+    require("./client/views/settings/website-management/route-form.html")
+  );
+  $templateCache.put(
+    "settings/website-management/redirects/form.html",
+    require("./client/views/settings/website-management/redirects/form.html")
+  );
+  $templateCache.put(
+    "settings/website-management/redirects/index.html",
+    require("./client/views/settings/website-management/redirects/index.html")
+  );
+
+  $templateCache.put(
+    "settings/website-management/redirects/item.html",
+    require("./client/views/settings/website-management/redirects/item.html")
+  );
 }
+
+
 
 /**
  * @ngdoc module
@@ -170,25 +143,17 @@ export default angular
     "ngFileUpload",
     "in-viewport"
   ])
-
-  .directive("sdPublishRoutes", directive.PublishRoutesDirective)
-  .directive("sdListArticles", directive.ListArticlesDirective)
-  .directive("sdListContentLists", directive.ListContentListsDirective)
-  .directive("sdCardInputFocus", directive.CardInputFocusDirective)
-  .directive("sdGroupArticle", directive.GroupArticleDirective)
-  .directive("sdArticles", directive.ArticlesDirective)
   .directive("sdSiteWizard", directive.SiteWizardDirective)
   .directive("sdThemeManager", directive.ThemeManagerDirective)
-  .directive("sdGallery", directive.GalleryDirective)
   .factory("publisher", services.PublisherFactory)
   .factory("pubapi", services.PubAPIFactory)
-  .factory("publisherHelpers", services.PublisherHelpersFactory)
   .config([
     "superdeskProvider",
     "workspaceMenuProvider",
-    function(superdesk, workspaceMenuProvider) {
+    function (superdesk, workspaceMenuProvider) {
       superdesk
         .activity("/publisher", {
+          // privileges: { publisher_dashboard: 1 },
           label: gettext("Publisher"),
           description: gettext("Publisher"),
           controller: controllers.WebPublisherDashboardController,
@@ -202,6 +167,13 @@ export default angular
           controller: controllers.WebPublisherOutputController,
           controllerAs: "webPublisherOutput",
           template: require("./client/views/output/index.html"),
+          sideTemplateUrl: "scripts/apps/workspace/views/workspace-sidenav.html"
+        })
+        .activity("/publisher/error-log", {
+          label: gettext("Publisher"),
+          description: gettext("Publisher"),
+          controller: controllers.WebPublisherErrorLogController,
+          template: require("./client/views/error-log/index.html"),
           sideTemplateUrl: "scripts/apps/workspace/views/workspace-sidenav.html"
         })
         .activity("/publisher/content_lists", {
@@ -255,6 +227,7 @@ export default angular
         });
 
       workspaceMenuProvider.item({
+        // if: 'privileges.publisher_dashboard',
         href: "/publisher",
         label: gettext("Publisher"),
         icon: "publisher",

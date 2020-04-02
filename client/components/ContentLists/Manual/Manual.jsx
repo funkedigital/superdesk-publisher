@@ -9,6 +9,7 @@ import DropdownScrollable from "../../UI/DropdownScrollable";
 import SearchBar from "../../UI/SearchBar";
 import ArticleItem from "./ArticleItem";
 import Loading from "../../UI/Loading/Loading";
+import LanguageSelect from "../../UI/LanguageSelect";
 
 // a little function to help us with reordering the result
 const reorder = (list, startIndex, endIndex) => {
@@ -58,7 +59,10 @@ class Manual extends React.Component {
         loading: false
       },
       listSearchQuery: "",
-      articlesFilters: {},
+      articlesFilters:
+        this.props.site && this.props.site.default_language
+          ? { language: this.props.site.default_language }
+          : {},
       changesRecord: []
     };
   }
@@ -80,7 +84,10 @@ class Manual extends React.Component {
             loading: false
           },
           listSearchQuery: "",
-          articlesFilters: {},
+          articlesFilters:
+            this.props.site && this.props.site.default_language
+              ? { language: this.props.site.default_language }
+              : {},
           changesRecord: []
         },
         this._loadData
@@ -188,6 +195,12 @@ class Manual extends React.Component {
             loading: false
           };
           if (this._isMounted) this.setState({ list });
+        })
+        .catch(err => {
+          this.props.api.notify.error("Cannot load list items.");
+          let list = { ...this.state.list };
+          list.loading = false;
+          if (this._isMounted) this.setState({ list });
         });
     });
   };
@@ -213,6 +226,10 @@ class Manual extends React.Component {
       params.page = this.state.articles.page + 1;
       params["sorting[published_at]"] = "desc";
       params.status = "published";
+      if (params.language) {
+        params["metadata[language]"] = params.language;
+        delete params.language;
+      }
 
       this.props.publisher.queryTenantArticles(params).then(response => {
         let articles = {
@@ -275,11 +292,7 @@ class Manual extends React.Component {
         this.props.list.id
       )
       .then(savedList => {
-        let list = { ...this.props.list };
-        list.updated_at = savedList.updated_at;
-        list.content_list_items_updated_at =
-          savedList.content_list_items_updated_at;
-        this.props.onListUpdate(list);
+        this.props.onListUpdate(savedList);
       })
       .catch(err => {
         if (err.status === 409) {
@@ -338,16 +351,6 @@ class Manual extends React.Component {
 
       let list = { ...this.state.list };
       let articles = { ...this.state.articles };
-
-      if (
-        this.props.list.limit &&
-        this.props.list.limit < result.contentList.length
-      ) {
-        this.props.api.notify.error(
-          "This list is limited to " + this.props.list.limit + " articles"
-        );
-        return null;
-      }
 
       list.items = result.contentList;
       articles.items = result.articles;
@@ -410,6 +413,9 @@ class Manual extends React.Component {
 
     return list;
   };
+
+  getDraggableId = item =>
+    item.content ? item.id + "_" + item.content.id : item.id;
 
   render() {
     let filteredContentListItems = this.markDuplicates([
@@ -499,33 +505,54 @@ class Manual extends React.Component {
                           : {}
                       }
                     >
-                      {filteredContentListItems.map((item, index) => (
-                        <Draggable
-                          key={"list" + item.id}
-                          draggableId={item.id}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
+                      {filteredContentListItems.map((item, index) => {
+                        let retArray = [];
+
+                        if (index === this.props.list.limit) {
+                          retArray.push(
                             <li
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              style={provided.draggableProps.style}
+                              key={"limitnotification"}
+                              className="listLimitNotification"
                             >
-                              <ArticleItem
-                                item={item.content ? item.content : item}
-                                openPreview={item =>
-                                  this.props.openPreview(item)
-                                }
-                                previewItem={this.props.previewItem}
-                                index={index}
-                                showExtras={true}
-                                remove={id => this.removeItem(id)}
-                              />
+                              This list is limited to {this.props.list.limit}{" "}
+                              items. Articles below will be removed.
                             </li>
-                          )}
-                        </Draggable>
-                      ))}
+                          );
+                        }
+
+                        retArray.push(
+                          <Draggable
+                            key={"list" + item.id + "" + index}
+                            draggableId={this.getDraggableId(item)}
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <li
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                style={provided.draggableProps.style}
+                              >
+                                <ArticleItem
+                                  item={item.content ? item.content : item}
+                                  openPreview={item =>
+                                    this.props.openPreview(item)
+                                  }
+                                  previewItem={this.props.previewItem}
+                                  index={index}
+                                  showExtras={true}
+                                  remove={id => this.removeItem(id)}
+                                  willBeTrimmed={
+                                    this.props.list.limit &&
+                                    this.props.list.limit <= index
+                                  }
+                                />
+                              </li>
+                            )}
+                          </Draggable>
+                        );
+                        return retArray;
+                      })}
                       {provided.placeholder}
 
                       {this.state.list.loading && (
@@ -561,6 +588,18 @@ class Manual extends React.Component {
                 onChange={value => this.handleArticlesSearch(value)}
               />
               <h3 className="subnav__page-title">All published articles</h3>
+              {this.props.isLanguagesEnabled && (
+                <LanguageSelect
+                  languages={this.props.languages}
+                  selectedLanguageCode={this.state.articlesFilters.language}
+                  setLanguage={lang => {
+                    this.filterArticles({
+                      ...this.state.articlesFilters,
+                      language: lang
+                    });
+                  }}
+                />
+              )}
             </div>
             <div className="sd-column-box--3">
               <div
@@ -576,7 +615,7 @@ class Manual extends React.Component {
                       {this.state.articles.items.map((item, index) => (
                         <Draggable
                           key={"article" + item.id}
-                          draggableId={item.id}
+                          draggableId={this.getDraggableId(item)}
                           index={index}
                         >
                           {(provided, snapshot) => (
@@ -633,7 +672,10 @@ Manual.propTypes = {
   openPreview: PropTypes.func,
   previewItem: PropTypes.object,
   filtersOpen: PropTypes.bool,
-  api: PropTypes.func.isRequired
+  api: PropTypes.func.isRequired,
+  isLanguagesEnabled: PropTypes.bool.isRequired,
+  languages: PropTypes.array.isRequired,
+  site: PropTypes.object.isRequired
 };
 
 export default Manual;

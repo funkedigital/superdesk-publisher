@@ -133,6 +133,43 @@ export function PublisherFactory(pubapi) {
       return pubapi.query("content/routes", params);
     }
 
+
+    /**
+     * @ngdoc method
+     * @name publisher#manageRedirect
+     * @param {Object} redirect - redirect which is edited
+     * @param {String} id - id of redirect which is edited
+     * @returns {Promise}
+     * @description Add or edit route
+     */
+    manageRedirect(redirect, id) {
+      return pubapi.save("redirects", redirect, id);
+    }
+
+    /**
+     * @ngdoc method
+     * @name publisher#removeRedirect
+     * @param {String} id - id of redirect which is deleted
+     * @returns {Promise}
+     * @description Delete route
+     */
+    removeRedirect(id) {
+      return pubapi.remove("redirects", id);
+    }
+
+    /**
+    * @ngdoc method
+    * @name publisher#queryRedirects
+    * @returns {Promise}
+    * @description List all redirects
+    */
+    queryRedirects() {
+      let params = {
+        limit: 1000
+      };
+      return pubapi.query("redirects", params);
+    }
+
     /**
      * @ngdoc method
      * @name publisher#getMenu
@@ -316,6 +353,17 @@ export function PublisherFactory(pubapi) {
 
     /**
      * @ngdoc method
+     * @name publisher#getArticle
+     * @param {String} articleId - id of package
+     * @returns {Promise}
+     * @description gets article
+     */
+    getArticle(articleId) {
+      return pubapi.get("content/articles", articleId);
+    }
+
+    /**
+     * @ngdoc method
      * @name publisher#queryMonitoringArticles
      * @param {String} articleStatus - status of articles (new, published, unpublished, canceled)
      * @returns {Promise}
@@ -323,6 +371,22 @@ export function PublisherFactory(pubapi) {
      */
     queryMonitoringArticles(articleStatus) {
       return pubapi.queryWithDetails("packages", articleStatus);
+    }
+
+    /**
+     * @ngdoc method
+     * @name publisher#getPackage
+     * @param {String} packageId - id of package
+     * @returns {Promise}
+     * @description List all articles for monitoring view
+     */
+    getPackage(packageId, withRoutes = false, withContentLists = false) {
+      let params = {};
+
+      if (withContentLists) params.withContentLists = true;
+      if (withRoutes) params.withRoutes = true;
+
+      return pubapi.get("packages", packageId, params);
     }
 
     /**
@@ -400,6 +464,16 @@ export function PublisherFactory(pubapi) {
      */
     queryOrganizationRules(params) {
       return pubapi.query("organization/rules", params);
+    }
+
+    /**
+   * @ngdoc method
+   * @name publisher#getAnalyticsReports
+   * @returns {Promise}
+   * @description List all webhooks
+   */
+    getAnalyticsReports(params) {
+      return pubapi.queryWithDetails("export/analytics", params);
     }
 
     /**
@@ -540,13 +614,13 @@ export function PublisherFactory(pubapi) {
     }
 
     /**
-     * @ngdoc method
-     * @name publisher#manageWebhook
-     * @param {Object} webhook - webhook which is edited
-     * @param {String} id - id of webhook which is edited
-     * @returns {Promise}
-     * @description Add or edit tenant rule
-     */
+    * @ngdoc method
+    * @name publisher#manageWebhook
+    * @param {Object} webhook - webhook which is edited
+    * @param {String} id - id of webhook which is edited
+    * @returns {Promise}
+    * @description Add or edit tenant rule
+    */
     manageWebhook(webhook, id) {
       return pubapi.save("webhooks", webhook, id);
     }
@@ -573,6 +647,28 @@ export function PublisherFactory(pubapi) {
      */
     saveArticleMetaData(data, slug) {
       return pubapi.save("content/articles", { seo_metadata: data }, slug);
+    }
+
+    /**
+     * @ngdoc method
+     * @name publisher#generateAnalyticsReport
+     * @param {Object} filters
+     * @returns {Promise}
+     * @description Save article meta data
+     */
+    generateAnalyticsReport(filters) {
+      return pubapi.save("export/analytics", filters);
+    }
+
+    /**
+     * @ngdoc method
+     * @name publisher#getFailedQueue
+     * @param {Object} params
+     * @returns {Promise}
+     * @description Get failed queue items
+     */
+    getFailedQueue(params) {
+      return pubapi.queryWithDetails("failed_queue", params);
     }
   }
 

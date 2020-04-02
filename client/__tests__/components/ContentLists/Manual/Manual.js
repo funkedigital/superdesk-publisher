@@ -1,11 +1,13 @@
 import React from "react";
 import Manual from "../../../../components/ContentLists/Manual/Manual";
-import { render, waitForElement } from "@testing-library/react";
+import { render, wait } from "@testing-library/react";
 import axios from "axios";
 
 import Publisher from "../../../../__mocks__/publisher";
 
 const publisher = new Publisher();
+
+jest.mock('moment', () => () => ({ fromNow: () => '2 days ago' }));
 
 let lists = [];
 publisher.queryLists().then(items => (lists = items));
@@ -13,10 +15,10 @@ publisher.queryLists().then(items => (lists = items));
 jest.mock("axios");
 jest.mock("react-select", () => props => "div");
 
-let api = () => {};
+let api = () => { };
 
 api.users = {};
-api.users.query = function() {
+api.users.query = function () {
   return new Promise((resolve, reject) => {
     resolve({
       _items: [{ is_author: true, display_name: "test author" }],
@@ -25,9 +27,15 @@ api.users.query = function() {
   });
 };
 
+const languages = [
+  { qcode: 'pl', name: 'Polish' },
+  { qcode: 'en', name: 'English' },
+  { qcode: 'de', name: 'German' },
+]
+
 describe("ContentLists/Manual/Manual", () => {
   it("renders properly", async () => {
-    const { container, getByText } = render(
+    const { container } = render(
       <Manual
         list={lists[0]}
         lists={lists}
@@ -36,8 +44,14 @@ describe("ContentLists/Manual/Manual", () => {
         onListUpdate={jest.fn()}
         api={api}
         toggleFilters={jest.fn()}
+        isLanguagesEnabled={true}
+        languages={languages}
       />
     );
+
+    await wait(() =>
+      expect(container.querySelector(".sd-loader")).not.toBeInTheDocument(),
+    )
     expect(container.firstChild).toMatchSnapshot();
   });
 });
